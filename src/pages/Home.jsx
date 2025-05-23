@@ -21,19 +21,6 @@ const Home = () => {
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 0.6 }}
           className="sticky top-0 z-50 glass border-b border-white/20 backdrop-blur-lg"
-        {/* Navigation Menu */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="text-center mb-8"
-        >
-          <Link to="/calendar" className="inline-flex items-center space-x-2 px-6 py-3 bg-white/20 backdrop-blur-sm rounded-xl border border-white/30 text-primary hover:bg-white/30 transition-all duration-200">
-            <ApperIcon name="Calendar" className="w-5 h-5" />
-            <span>Calendar View</span>
-          </Link>
-        </motion.div>
-
         >
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between h-16 md:h-20">
@@ -58,6 +45,19 @@ const Home = () => {
             </div>
           </div>
         </motion.header>
+
+        {/* Navigation Menu */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="text-center mb-8 pt-8"
+        >
+          <Link to="/calendar" className="inline-flex items-center space-x-2 px-6 py-3 bg-white/20 backdrop-blur-sm rounded-xl border border-white/30 text-primary hover:bg-white/30 transition-all duration-200">
+            <ApperIcon name="Calendar" className="w-5 h-5" />
+            <span>Calendar View</span>
+          </Link>
+        </motion.div>
 
         {/* Hero Section */}
         <motion.section 
