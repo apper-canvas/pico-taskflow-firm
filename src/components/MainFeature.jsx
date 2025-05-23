@@ -40,7 +40,13 @@ const MainFeature = () => {
 
   useEffect(() => {
     localStorage.setItem('taskflow-tasks', JSON.stringify(tasks))
+    // Make tasks available for other components
+    window.taskFlowData = { tasks, setTasks }
   }, [tasks])
+
+  useEffect(() => {
+    window.taskFlowData = { tasks, setTasks }
+  }, [tasks, setTasks])
 
   const handleSubmit = (e) => {
     e.preventDefault()
@@ -139,8 +145,6 @@ const MainFeature = () => {
   }
 
   return (
-  // Make tasks available for other components
-  window.taskFlowData = { tasks, setTasks }
     <div className="max-w-6xl mx-auto">
       {/* Header Controls */}
       <motion.div 
