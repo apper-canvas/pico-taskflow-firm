@@ -396,6 +396,7 @@ const MainFeature = () => {
   }
 
   return (
+    <>
     <div className="flex min-h-screen">
       {/* Project Sidebar */}
       <ProjectSidebar
