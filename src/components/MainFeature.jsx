@@ -122,6 +122,10 @@ const MainFeature = () => {
     return format(date, 'MMM d, yyyy')
   }
 
+  const getTasksForExport = () => {
+    return tasks
+  }
+
   const resetForm = () => {
     setFormData({
       title: '',
@@ -135,6 +139,8 @@ const MainFeature = () => {
   }
 
   return (
+  // Make tasks available for other components
+  window.taskFlowData = { tasks, setTasks }
     <div className="max-w-6xl mx-auto">
       {/* Header Controls */}
       <motion.div 
