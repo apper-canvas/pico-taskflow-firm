@@ -184,10 +184,6 @@ const MainFeature = () => {
     window.taskFlowData = { tasks, setTasks }
   }, [tasks])
 
-  useEffect(() => {
-  useEffect(() => {
-    window.taskFlowData = { tasks, setTasks }
-  }, [tasks, setTasks])
   // Drag Overlay Component
   const TaskDragOverlay = ({ task }) => {
     if (!task) return null
