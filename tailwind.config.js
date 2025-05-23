@@ -44,6 +44,15 @@ export default {
       borderRadius: {
         'xl': '0.75rem',
         '2xl': '1rem'
+      },
+      animation: {
+        'drag-pulse': 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+        'drop-bounce': 'bounce 1s infinite',
+        'drag-rotate': 'spin 1s linear infinite',
+      },
+      scale: {
+        '102': '1.02',
+        '98': '0.98'
       }
     }
   },

@@ -2,6 +2,23 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'react-toastify'
 import { format, isToday, isTomorrow, isPast } from 'date-fns'
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragOverlay,
+} from '@dnd-kit/core'
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import ApperIcon from './ApperIcon'
 
 const MainFeature = () => {
@@ -10,6 +27,9 @@ const MainFeature = () => {
   const [editingTask, setEditingTask] = useState(null)
   const [filter, setFilter] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
+  const [activeId, setActiveId] = useState(null)
+  const [sortBy, setSortBy] = useState('manual')
+  const [groupBy, setGroupBy] = useState('none')
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -31,6 +51,20 @@ const MainFeature = () => {
     completed: 'bg-green-100 text-green-800 border-green-200'
   }
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  )
+
+  // Sortable Task Item Component
+  const SortableTaskItem = ({ task }) => {
+    const {
   useEffect(() => {
     const savedTasks = localStorage.getItem('taskflow-tasks')
     if (savedTasks) {
@@ -39,6 +73,134 @@ const MainFeature = () => {
   }, [])
 
   useEffect(() => {
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+    }
+
+    return (
+      <motion.div
+        ref={setNodeRef}
+        style={style}
+        {...attributes}
+        layout
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.9 }}
+        className={`group bg-white/70 dark:bg-gray-800/70 backdrop-blur-lg rounded-2xl border border-white/20 dark:border-gray-700/30 p-4 md:p-6 hover:shadow-soft transition-all duration-300 sortable-item ${
+          isDragging ? 'dragging' : ''
+        }`}
+      >
+        {/* Drag Handle */}
+        <div
+          {...listeners}
+          className="drag-handle absolute top-2 right-2 p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+        >
+          <ApperIcon name="GripVertical" className="w-4 h-4 text-gray-400" />
+        </div>
+
+        {/* Task Header */}
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex-1 min-w-0 pr-8">
+            <h4 className={`text-lg font-semibold mb-2 ${task.status === 'completed' ? 'line-through text-gray-500' : 'text-gray-900 dark:text-white'}`}>
+              {task.title}
+            </h4>
+            {task.description && (
+              <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed line-clamp-2">
+                {task.description}
+              </p>
+            )}
+          </div>
+          <button
+            onClick={() => toggleStatus(task.id)}
+            className={`ml-3 p-2 rounded-lg transition-all duration-200 ${
+              task.status === 'completed'
+                ? 'bg-green-100 text-green-600 hover:bg-green-200'
+                : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+            }`}
+          >
+            <ApperIcon name="Check" className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Task Meta */}
+        <div className="flex flex-wrap gap-2 mb-4">
+          <span className={`px-3 py-1 rounded-full text-xs font-medium border ${priorityColors[task.priority]}`}>
+            {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
+          </span>
+          <span className={`px-3 py-1 rounded-full text-xs font-medium border ${statusColors[task.status]}`}>
+            {task.status.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+          </span>
+        </div>
+
+        {/* Due Date */}
+        {task.dueDate && (
+          <div className="flex items-center space-x-2 mb-4">
+            <ApperIcon name="Calendar" className="w-4 h-4 text-gray-400" />
+            <span className={`text-sm ${
+              isPast(new Date(task.dueDate)) && task.status !== 'completed'
+                ? 'text-red-500 font-medium'
+                : 'text-gray-600 dark:text-gray-300'
+            }`}>
+              {getDateDisplay(task.dueDate)}
+            </span>
+          </div>
+        )}
+
+        {/* Actions */}
+        <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex space-x-2">
+            <button
+              onClick={() => handleEdit(task)}
+              className="p-2 text-gray-400 hover:text-primary hover:bg-primary/10 rounded-lg transition-all duration-200"
+            >
+              <ApperIcon name="Edit2" className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => handleDelete(task.id)}
+              className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all duration-200"
+            >
+              <ApperIcon name="Trash2" className="w-4 h-4" />
+            </button>
+          </div>
+          <span className="text-xs text-gray-400">
+            {format(new Date(task.createdAt), 'MMM d')}
+          </span>
+        </div>
+      </motion.div>
+    )
+  }
+
+  // Drag Overlay Component
+  const TaskDragOverlay = ({ task }) => {
+    if (!task) return null
+
+    return (
+      <div className="drag-overlay bg-white/90 dark:bg-gray-800/90 backdrop-blur-lg rounded-2xl border border-primary p-4 md:p-6 w-80 max-w-sm">
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex-1 min-w-0 pr-8">
+            <h4 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">
+              {task.title}
+            </h4>
+            {task.description && (
+              <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed line-clamp-2">
+                {task.description}
+              </p>
+            )}
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <span className={`px-3 py-1 rounded-full text-xs font-medium border ${priorityColors[task.priority]}`}>
+            {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
+          </span>
+          <span className={`px-3 py-1 rounded-full text-xs font-medium border ${statusColors[task.status]}`}>
+            {task.status.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+          </span>
+        </div>
+      </div>
+    )
+  }
+
     localStorage.setItem('taskflow-tasks', JSON.stringify(tasks))
     // Make tasks available for other components
     window.taskFlowData = { tasks, setTasks }
@@ -112,12 +274,69 @@ const MainFeature = () => {
     }))
   }
 
+  const handleDragStart = (event) => {
+    setActiveId(event.active.id)
+  }
+
+  const handleDragEnd = (event) => {
+    const { active, over } = event
+
+    if (active.id !== over?.id) {
+      setTasks((tasks) => {
+        const oldIndex = tasks.findIndex((task) => task.id === active.id)
+        const newIndex = tasks.findIndex((task) => task.id === over.id)
+        
+        const newTasks = arrayMove(tasks, oldIndex, newIndex)
+        toast.success('Task order updated successfully!')
+        return newTasks
+      })
+    }
+
+    setActiveId(null)
+  }
+
+  const sortTasks = (tasksToSort) => {
+    if (sortBy === 'manual') return tasksToSort
+    
+    return [...tasksToSort].sort((a, b) => {
+      switch (sortBy) {
+        case 'priority':
+          const priorityOrder = { urgent: 4, high: 3, medium: 2, low: 1 }
+          return priorityOrder[b.priority] - priorityOrder[a.priority]
+        case 'dueDate':
+          if (!a.dueDate && !b.dueDate) return 0
+          if (!a.dueDate) return 1
+          if (!b.dueDate) return -1
+          return new Date(a.dueDate) - new Date(b.dueDate)
+        case 'status':
+          const statusOrder = { pending: 1, 'in-progress': 2, completed: 3 }
+          return statusOrder[a.status] - statusOrder[b.status]
+        default:
+          return 0
+      }
+    })
+  }
+
   const filteredTasks = tasks.filter(task => {
     const matchesFilter = filter === 'all' || task.status === filter
     const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          task.description.toLowerCase().includes(searchQuery.toLowerCase())
     return matchesFilter && matchesSearch
   })
+
+  const sortedTasks = sortTasks(filteredTasks)
+
+  const groupTasks = (tasks) => {
+    if (groupBy === 'none') return { 'All Tasks': tasks }
+    
+    return tasks.reduce((groups, task) => {
+      const key = groupBy === 'priority' ? task.priority : task.status
+      const groupName = key.charAt(0).toUpperCase() + key.slice(1).replace('-', ' ')
+      groups[groupName] = groups[groupName] || []
+      groups[groupName].push(task)
+      return groups
+    }, {})
+  }
 
   const getDateDisplay = (dateString) => {
     if (!dateString) return null
@@ -177,6 +396,29 @@ const MainFeature = () => {
             <option value="pending">Pending</option>
             <option value="in-progress">In Progress</option>
             <option value="completed">Completed</option>
+          </select>
+
+          {/* Sort By */}
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="px-4 py-3 bg-white/50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200 sm:w-auto"
+          >
+            <option value="manual">Manual Order</option>
+            <option value="priority">Sort by Priority</option>
+            <option value="dueDate">Sort by Due Date</option>
+            <option value="status">Sort by Status</option>
+          </select>
+
+          {/* Group By */}
+          <select
+            value={groupBy}
+            onChange={(e) => setGroupBy(e.target.value)}
+            className="px-4 py-3 bg-white/50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200 sm:w-auto"
+          >
+            <option value="none">No Grouping</option>
+            <option value="priority">Group by Priority</option>
+            <option value="status">Group by Status</option>
           </select>
 
           {/* Add Task Button */}
@@ -314,91 +556,39 @@ const MainFeature = () => {
       </AnimatePresence>
 
       {/* Tasks Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-        <AnimatePresence>
-          {filteredTasks.map((task) => (
-            <motion.div
-              key={task.id}
-              layout
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="group bg-white/70 dark:bg-gray-800/70 backdrop-blur-lg rounded-2xl border border-white/20 dark:border-gray-700/30 p-4 md:p-6 hover:shadow-soft transition-all duration-300"
-            >
-              {/* Task Header */}
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex-1 min-w-0">
-                  <h4 className={`text-lg font-semibold mb-2 ${task.status === 'completed' ? 'line-through text-gray-500' : 'text-gray-900 dark:text-white'}`}>
-                    {task.title}
-                  </h4>
-                  {task.description && (
-                    <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed line-clamp-2">
-                      {task.description}
-                    </p>
-                  )}
-                </div>
-                <button
-                  onClick={() => toggleStatus(task.id)}
-                  className={`ml-3 p-2 rounded-lg transition-all duration-200 ${
-                    task.status === 'completed'
-                      ? 'bg-green-100 text-green-600 hover:bg-green-200'
-                      : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
-                  }`}
-                >
-                  <ApperIcon name="Check" className="w-5 h-5" />
-                </button>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        {Object.entries(groupTasks(sortedTasks)).map(([groupName, groupTasks]) => (
+          <div key={groupName} className="mb-8">
+            {groupBy !== 'none' && (
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 px-2">
+                {groupName} ({groupTasks.length})
+              </h3>
+            )}
+            
+            <SortableContext items={groupTasks.map(task => task.id)} strategy={verticalListSortingStrategy}>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                <AnimatePresence>
+                  {groupTasks.map((task) => (
+                    <SortableTaskItem key={task.id} task={task} />
+                  ))}
+                </AnimatePresence>
               </div>
+            </SortableContext>
+          </div>
+        ))}
 
-              {/* Task Meta */}
-              <div className="flex flex-wrap gap-2 mb-4">
-                <span className={`px-3 py-1 rounded-full text-xs font-medium border ${priorityColors[task.priority]}`}>
-                  {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
-                </span>
-                <span className={`px-3 py-1 rounded-full text-xs font-medium border ${statusColors[task.status]}`}>
-                  {task.status.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
-                </span>
-              </div>
-
-              {/* Due Date */}
-              {task.dueDate && (
-                <div className="flex items-center space-x-2 mb-4">
-                  <ApperIcon name="Calendar" className="w-4 h-4 text-gray-400" />
-                  <span className={`text-sm ${
-                    isPast(new Date(task.dueDate)) && task.status !== 'completed'
-                      ? 'text-red-500 font-medium'
-                      : 'text-gray-600 dark:text-gray-300'
-                  }`}>
-                    {getDateDisplay(task.dueDate)}
-                  </span>
-                </div>
-              )}
-
-              {/* Actions */}
-              <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
-                <div className="flex space-x-2">
-                  <button
-                    onClick={() => handleEdit(task)}
-                    className="p-2 text-gray-400 hover:text-primary hover:bg-primary/10 rounded-lg transition-all duration-200"
-                  >
-                    <ApperIcon name="Edit2" className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(task.id)}
-                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all duration-200"
-                  >
-                    <ApperIcon name="Trash2" className="w-4 h-4" />
-                  </button>
-                </div>
-                <span className="text-xs text-gray-400">
-                  {format(new Date(task.createdAt), 'MMM d')}
-                </span>
-              </div>
-            </motion.div>
-          ))}
-        </AnimatePresence>
+        <DragOverlay>
+          <TaskDragOverlay task={tasks.find(task => task.id === activeId)} />
+        </DragOverlay>
+      </DndContext>
       </div>
 
-      {/* Empty State */}
+      {sortedTasks.length === 0 && (
       {filteredTasks.length === 0 && (
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
