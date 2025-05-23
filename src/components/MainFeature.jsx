@@ -21,11 +21,17 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import ApperIcon from './ApperIcon'
 
+import ProjectSidebar from './ProjectSidebar'
+
 const MainFeature = () => {
   const [tasks, setTasks] = useState([])
+  const [projects, setProjects] = useState([])
   const [showForm, setShowForm] = useState(false)
   const [editingTask, setEditingTask] = useState(null)
   const [filter, setFilter] = useState('all')
+  const [selectedProject, setSelectedProject] = useState(null)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [showProjectForm, setShowProjectForm] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [activeId, setActiveId] = useState(null)
   const [sortBy, setSortBy] = useState('manual')
@@ -35,7 +41,8 @@ const MainFeature = () => {
     description: '',
     priority: 'medium',
     dueDate: '',
-    status: 'pending'
+    status: 'pending',
+    projectId: null
   })
 
   const priorityColors = {
@@ -173,10 +180,18 @@ const MainFeature = () => {
 
   useEffect(() => {
     const savedTasks = localStorage.getItem('taskflow-tasks')
+    const savedProjects = localStorage.getItem('taskflow-projects')
     if (savedTasks) {
       setTasks(JSON.parse(savedTasks))
     }
+    if (savedProjects) {
+      setProjects(JSON.parse(savedProjects))
+    }
   }, [])
+
+  useEffect(() => {
+    localStorage.setItem('taskflow-projects', JSON.stringify(projects))
+  }, [projects])
 
   useEffect(() => {
     localStorage.setItem('taskflow-tasks', JSON.stringify(tasks))
@@ -248,7 +263,8 @@ const MainFeature = () => {
       priority: 'medium',
       dueDate: '',
       status: 'pending'
-    })
+      status: 'pending',
+      projectId: selectedProject?.id || null
     setShowForm(false)
   }
 
@@ -259,7 +275,8 @@ const MainFeature = () => {
       description: task.description,
       priority: task.priority,
       dueDate: task.dueDate,
-      status: task.status
+      status: task.status,
+      projectId: task.projectId
     })
     setShowForm(true)
   }
@@ -324,9 +341,14 @@ const MainFeature = () => {
 
   const filteredTasks = tasks.filter(task => {
     const matchesFilter = filter === 'all' || task.status === filter
+    const matchesProject = !selectedProject || task.projectId === selectedProject.id
     const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          task.description.toLowerCase().includes(searchQuery.toLowerCase())
-    return matchesFilter && matchesSearch
+    return matchesFilter && matchesProject && matchesSearch
+  })
+
+  const getProjectById = (projectId) => {
+    return projects.find(p => p.id === projectId)
   })
 
   const sortedTasks = sortTasks(filteredTasks)
@@ -362,21 +384,78 @@ const MainFeature = () => {
       description: '',
       priority: 'medium',
       dueDate: '',
-      status: 'pending'
+      status: 'pending',
+      projectId: selectedProject?.id || null
     })
     setEditingTask(null)
     setShowForm(false)
   }
 
+  const getFilteredTasksCount = () => {
+    return filteredTasks.length
+  }
+
   return (
-    <div className="max-w-6xl mx-auto">
+    <div className="flex min-h-screen">
+      {/* Project Sidebar */}
+      <ProjectSidebar
+        projects={projects}
+        setProjects={setProjects}
+        selectedProject={selectedProject}
+        setSelectedProject={setSelectedProject}
+        collapsed={sidebarCollapsed}
+        setCollapsed={setSidebarCollapsed}
+        taskCount={getFilteredTasksCount()}
+      />
+
+      {/* Main Content */}
+      <div className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? 'ml-16' : 'ml-88'}`}>
+        <div className="max-w-6xl mx-auto p-4 md:p-6">
+          {/* Header with Selected Project */}
+          {selectedProject && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-lg rounded-2xl border border-white/20 dark:border-gray-700/30 p-4 md:p-6 mb-6"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                    {selectedProject.name}
+                  </h2>
+                  {selectedProject.description && (
+                    <p className="text-gray-600 dark:text-gray-300">
+                      {selectedProject.description}
+                    </p>
+                  )}
+                </div>
+                <div className="flex items-center space-x-4">
+                  <div className="text-right">
+                    <div className="text-2xl font-bold text-primary">
+                      {getFilteredTasksCount()}
+                    </div>
+                    <div className="text-sm text-gray-600 dark:text-gray-400">
+                      {getFilteredTasksCount() === 1 ? 'Task' : 'Tasks'}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setSelectedProject(null)}
+                    className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                  >
+                    <ApperIcon name="X" className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
       {/* Header Controls */}
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-lg rounded-2xl border border-white/20 dark:border-gray-700/30 p-4 md:p-6 mb-6 md:mb-8"
       >
-        <div className="flex flex-col sm:flex-row gap-4 md:gap-6">
+          <div className="flex flex-col lg:flex-row gap-4 md:gap-6">
           {/* Search */}
           <div className="flex-1">
             <div className="relative">
@@ -540,6 +619,24 @@ const MainFeature = () => {
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Project
+                  </label>
+                  <select
+                    value={formData.projectId || ''}
+                    onChange={(e) => setFormData({ ...formData, projectId: e.target.value || null })}
+                    className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-all duration-200"
+                  >
+                    <option value="">No Project</option>
+                    {projects.map((project) => (
+                      <option key={project.id} value={project.id}>
+                        {project.parentId ? `└─ ${project.name}` : project.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                   <button
                     type="button"
                     onClick={resetForm}
@@ -620,6 +717,9 @@ const MainFeature = () => {
           )}
         </motion.div>
       )}
+    </div>
+        </div>
+      </div>
     </div>
   )
 }
