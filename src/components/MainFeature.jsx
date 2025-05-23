@@ -262,9 +262,9 @@ const MainFeature = () => {
       description: '',
       priority: 'medium',
       dueDate: '',
-      status: 'pending'
       status: 'pending',
       projectId: selectedProject?.id || null
+    })
     setShowForm(false)
   }
 
@@ -349,7 +349,7 @@ const MainFeature = () => {
 
   const getProjectById = (projectId) => {
     return projects.find(p => p.id === projectId)
-  })
+  }
 
   const sortedTasks = sortTasks(filteredTasks)
 
@@ -619,6 +619,7 @@ const MainFeature = () => {
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Project
