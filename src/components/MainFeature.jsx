@@ -618,9 +618,6 @@ const MainFeature = () => {
                   />
                 </div>
 
-                <div className="flex flex-col sm:flex-row gap-3 pt-4">
-                </div>
-                </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Project
@@ -653,7 +650,6 @@ const MainFeature = () => {
                   >
                     {editingTask ? 'Update Task' : 'Create Task'}
                   </button>
-                </div>
                 </div>
               </form>
             </motion.div>
