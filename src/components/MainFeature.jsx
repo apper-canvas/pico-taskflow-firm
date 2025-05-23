@@ -65,14 +65,14 @@ const MainFeature = () => {
   // Sortable Task Item Component
   const SortableTaskItem = ({ task }) => {
     const {
-  useEffect(() => {
-    const savedTasks = localStorage.getItem('taskflow-tasks')
-    if (savedTasks) {
-      setTasks(JSON.parse(savedTasks))
-    }
-  }, [])
+      attributes,
+      listeners,
+      setNodeRef,
+      transform,
+      transition,
+      isDragging,
+    } = useSortable({ id: task.id })
 
-  useEffect(() => {
     const style = {
       transform: CSS.Transform.toString(transform),
       transition,
@@ -171,6 +171,23 @@ const MainFeature = () => {
     )
   }
 
+  useEffect(() => {
+    const savedTasks = localStorage.getItem('taskflow-tasks')
+    if (savedTasks) {
+      setTasks(JSON.parse(savedTasks))
+    }
+  }, [])
+
+  useEffect(() => {
+    localStorage.setItem('taskflow-tasks', JSON.stringify(tasks))
+    // Make tasks available for other components
+    window.taskFlowData = { tasks, setTasks }
+  }, [tasks])
+
+  useEffect(() => {
+  useEffect(() => {
+    window.taskFlowData = { tasks, setTasks }
+  }, [tasks, setTasks])
   // Drag Overlay Component
   const TaskDragOverlay = ({ task }) => {
     if (!task) return null
@@ -201,14 +218,6 @@ const MainFeature = () => {
     )
   }
 
-    localStorage.setItem('taskflow-tasks', JSON.stringify(tasks))
-    // Make tasks available for other components
-    window.taskFlowData = { tasks, setTasks }
-  }, [tasks])
-
-  useEffect(() => {
-    window.taskFlowData = { tasks, setTasks }
-  }, [tasks, setTasks])
 
   const handleSubmit = (e) => {
     e.preventDefault()
@@ -586,9 +595,7 @@ const MainFeature = () => {
           <TaskDragOverlay task={tasks.find(task => task.id === activeId)} />
         </DragOverlay>
       </DndContext>
-      </div>
 
-      {sortedTasks.length === 0 && (
       {filteredTasks.length === 0 && (
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
